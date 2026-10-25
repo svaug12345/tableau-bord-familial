@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<!--
+=====================================================================
+  TABLEAU DE BORD FAMILIAL — SV
+  Version : 1.0.0
+  Auteur  : svaug12345
+  Cible   : Samsung Smart Monitor M7 32" (Tizen) + navigateur / téléphone
+---------------------------------------------------------------------
+  POC (proof of concept) : une seule page HTML autonome.
+  Aucune dépendance, aucun serveur : tout tient dans ce fichier.
+  Parfait pour être empaqueté plus tard en appli Tizen (.wgt).
+
+  CE QUI EST BRANCHÉ POUR DE VRAI :
+    - Horloge + date (JavaScript natif, mise à jour chaque seconde)
+    - Météo en direct (API Open-Meteo, gratuite, sans clé)
+    - Saint du jour (table embarquée, fonctionne hors ligne)
+    - Compte à rebours avant les prochaines vacances scolaires
+
+  CE QUI EST EN "DÉMO" POUR L'INSTANT (données écrites en dur) :
+    - Les corvées / pense-bête  -> à brancher sur le NAS plus tard
+
+  POUR PERSONNALISER : voir le bloc CONFIG juste en dessous (dans le
+  <script> en bas de page). Tout ce que tu auras à changer est là.
+=====================================================================
+-->
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <!-- viewport : indispensable pour que l'affichage s'adapte à l'écran -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tableau de bord familial — SV</title>
+
+  <style>
+    /* =================================================================
+       CHARTE GRAPHIQUE "SV" (repensée pour un grand écran dans le salon)
+       -----------------------------------------------------------------
+       Les couleurs sont définies une seule fois ici, en "variables CSS".
+       Tu changes une valeur -> toute l'appli suit. C'est la bonne
+       pratique pour garder une identité cohérente d'un projet à l'autre.
+       ================================================================= */
+    :root {
+      /* Teintes SV : fond sombre + turquoise / bleu-vert sobres et pro */
+      --sv-fond:        #0e1a1d;  /* fond principal, presque noir bleuté */
+      --sv-fond-carte:  #15262b;  /* fond des cartes, un cran plus clair */
+      --sv-bordure:     #1f3a42;  /* bordures discrètes */
+      --sv-turquoise:   #2fd3c6;  /* couleur d'accent principale (le "SV") */
+      --sv-turquoise-2: #1aa89c;  /* turquoise plus profond */
+      --sv-texte:       #e8f4f3;  /* texte clair, repos pour les yeux */
+      --sv-texte-doux:  #7fa3a6;  /* texte secondaire, plus discret */
+
+      /* Rayons d'arrondi et espacements, centralisés eux aussi */
+      --rayon: 20px;
+      --gap: 22px;
+    }
+
+    /* Remise à zéro de base : pas de marges surprises */
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+      background: var(--sv-fond);
+      /* léger halo turquoise en haut pour donner du relief */
+      background-image:
+        radial-gradient(1200px 500px at 50% -200px, rgba(47,211,198,0.12), transparent);
+      color: var(--sv-texte);
+      min-height: 100vh;
+      padding: var(--gap);
+      /* évite que le texte soit sélectionnable à la télécommande */
+      user-select: none;
+      overflow-x: hidden;
+    }
+
+    /* ---------- EN-TÊTE : logo SV + titre + date ---------- */
+    header {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: var(--gap);
+    }
+
+    /* Le logo "SV" : un trait façon pinceau (on ne reconnaît pas vraiment
+       le S), dessiné en SVG directement dans le HTML plus bas. */
+    .logo { width: 56px; height: 56px; flex-shrink: 0; }
+
+    .titre-zone { flex: 1; }
+    .titre-zone h1 {
+      font-size: 1.6rem;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+    }
+    .titre-zone .sous-titre {
+      color: var(--sv-texte-doux);
+      font-size: 0.95rem;
+    }
+
+    /* ---------- HORLOGE PRINCIPALE ---------- */
+    .horloge {
+      text-align: center;
+      margin: 10px 0 26px;
+    }
+    .horloge .heure {
+      font-size: clamp(3.5rem, 12vw, 7rem); /* s'adapte à la taille d'écran */
+      font-weight: 700;
+      line-height: 1;
+      color: var(--sv-texte);
+      /* dégradé turquoise sur les chiffres */
+      background: linear-gradient(135deg, var(--sv-turquoise), var(--sv-turquoise-2));
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .horloge .date {
+      font-size: clamp(1rem, 3vw, 1.5rem);
+      color: var(--sv-texte-doux);
+      margin-top: 8px;
+      text-transform: capitalize; /* "dimanche 25 octobre" avec majuscule */
+    }
+
+    /* ---------- GRILLE DE CARTES ---------- */
+    /* auto-fit : le nombre de colonnes s'ajuste à la largeur dispo */
+    .grille {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: var(--gap);
+    }
+
+    .carte {
+      background: var(--sv-fond-carte);
+      border: 1px solid var(--sv-bordure);
+      border-radius: var(--rayon);
+      padding: 24px;
+      /* petite animation à l'apparition */
+      animation: apparition 0.6s ease both;
+    }
+    @keyframes apparition {
+      from { opacity: 0; transform: translateY(12px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .carte h2 {
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      color: var(--sv-turquoise);
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* ---------- CARTE MÉTÉO ---------- */
+    .meteo-actuel {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+    .meteo-icone { font-size: 3.2rem; line-height: 1; }
+    .meteo-temp  { font-size: 2.6rem; font-weight: 700; }
+    .meteo-desc  { color: var(--sv-texte-doux); font-size: 0.95rem; }
+
+    /* prévisions des prochains jours */
+    .meteo-jours { display: flex; justify-content: space-between; gap: 8px; }
+    .meteo-jour  { text-align: center; flex: 1; }
+    .meteo-jour .j     { color: var(--sv-texte-doux); font-size: 0.8rem; text-transform: capitalize; }
+    .meteo-jour .i     { font-size: 1.6rem; margin: 4px 0; }
+    .meteo-jour .t-max { font-weight: 600; }
+    .meteo-jour .t-min { color: var(--sv-texte-doux); font-size: 0.85rem; }
+
+    /* ---------- CARTE SAINT DU JOUR ---------- */
+    .saint-nom { font-size: 2rem; font-weight: 700; }
+    .saint-info { color: var(--sv-texte-doux); margin-top: 6px; }
+
+    /* ---------- CARTE COMPTE À REBOURS ---------- */
+    .rebours-nb {
+      font-size: 3.4rem;
+      font-weight: 700;
+      color: var(--sv-turquoise);
+      line-height: 1;
+    }
+    .rebours-label { color: var(--sv-texte-doux); margin-top: 8px; }
+    .rebours-cible { margin-top: 4px; font-size: 0.9rem; }
+
+    /* ---------- CARTE CORVÉES (démo) ---------- */
+    .liste { list-style: none; }
+    .liste li {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--sv-bordure);
+      font-size: 1.05rem;
+    }
+    .liste li:last-child { border-bottom: none; }
+    .puce {
+      width: 10px; height: 10px; border-radius: 50%;
+      background: var(--sv-turquoise); flex-shrink: 0;
+    }
+
+    /* ---------- PIED DE PAGE ---------- */
+    footer {
+      text-align: center;
+      color: var(--sv-texte-doux);
+      font-size: 0.8rem;
+      margin-top: var(--gap);
+      opacity: 0.6;
+    }
+
+    /* message d'erreur (ex : météo non chargée) */
+    .erreur { color: #e8927c; font-size: 0.9rem; }
+  </style>
+</head>
+
+<body>
+
+  <!-- ================= EN-TÊTE ================= -->
+  <header>
+    <!-- LOGO SV : trait de pinceau abstrait (pas de lettre lisible),
+         tracé en une courbe. Il reprend le turquoise de la charte. -->
+    <svg class="logo" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-label="SV">
+      <defs>
+        <linearGradient id="grad-sv" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%"  stop-color="#2fd3c6"/>
+          <stop offset="100%" stop-color="#1aa89c"/>
+        </linearGradient>
+      </defs>
+      <!-- une seule courbe "coup de pinceau", épaisse et arrondie -->
+      <path d="M22 70 C 30 40, 55 38, 50 55 C 46 70, 62 72, 78 34"
+            fill="none" stroke="url(#grad-sv)" stroke-width="11"
+            stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+
+    <div class="titre-zone">
+      <h1>Tableau de bord familial</h1>
+      <div class="sous-titre" id="salutation">Bonjour la famille !</div>
+    </div>
+  </header>
+
+  <!-- ================= HORLOGE ================= -->
+  <div class="horloge">
+    <div class="heure" id="heure">--:--</div>
+    <div class="date" id="date-complete">chargement…</div>
+  </div>
+
+  <!-- ================= GRILLE DE CARTES ================= -->
+  <div class="grille">
+
+    <!-- Carte 1 : MÉTÉO -->
+    <div class="carte">
+      <h2>☀️ Météo</h2>
+      <div id="meteo-contenu">
+        <div class="meteo-desc">Chargement de la météo…</div>
+      </div>
+    </div>
+
+    <!-- Carte 2 : SAINT DU JOUR -->
+    <div class="carte">
+      <h2>🗓️ Saint du jour</h2>
+      <div class="saint-nom" id="saint-nom">—</div>
+      <div class="saint-info" id="saint-info"></div>
+    </div>
+
+    <!-- Carte 3 : COMPTE À REBOURS VACANCES -->
+    <div class="carte">
+      <h2>🏖️ Prochaines vacances</h2>
+      <div class="rebours-nb" id="rebours-nb">—</div>
+      <div class="rebours-label" id="rebours-label">jours</div>
+      <div class="rebours-cible" id="rebours-cible"></div>
+    </div>
+
+    <!-- Carte 4 : CORVÉES / PENSE-BÊTE (démo - données en dur) -->
+    <div class="carte">
+      <h2>✅ À ne pas oublier</h2>
+      <ul class="liste" id="liste-corvees">
+        <!-- rempli par le JavaScript depuis la CONFIG -->
+      </ul>
+    </div>
+
+  </div>
+
+  <!-- ================= PIED DE PAGE ================= -->
+  <footer>
+    SV · Tableau de bord familial · v1.0.0
+  </footer>
+
+
+  <!-- ====================================================================
+       SCRIPT : toute la logique de l'appli
+       ==================================================================== -->
+  <script>
+  "use strict"; // mode strict : JavaScript signale plus d'erreurs (bon réflexe)
+
+  /* ==================================================================
+     1) CONFIG  —  LE SEUL BLOC À MODIFIER POUR PERSONNALISER
+     ================================================================== */
+  const CONFIG = {
+    // --- Position pour la météo (par défaut : secteur Paris-Saclay) ---
+    // Trouve tes coordonnées sur https://www.latlong.net si besoin.
+    latitude:  48.71,
+    longitude: 2.17,
+    ville:     "Paris-Saclay",
+
+    // --- Vacances scolaires à venir (Zone C : Paris / Versailles) ---
+    // Dates de DÉBUT. Le compte à rebours vise automatiquement la
+    // prochaine date encore à venir dans cette liste.
+    // ⚠️ À vérifier/mettre à jour chaque année (format AAAA-MM-JJ).
+    vacances: [
+      { nom: "Vacances de Noël",      date: "2026-12-19" },
+      { nom: "Vacances d'hiver",      date: "2027-02-20" },
+      { nom: "Vacances de printemps", date: "2027-04-17" },
+      { nom: "Vacances d'été",        date: "2027-07-03" }
+    ],
+
+    // --- Pense-bête (démo) : sera remplacé plus tard par le NAS ---
+    corvees: [
+      "Poules chez Monique ce week-end 🐔",
+      "Rendre les livres à la médiathèque",
+      "Sortir les poubelles jaunes dimanche soir"
+    ]
+  };
+
+  /* ==================================================================
+     2) HORLOGE + DATE
+     ------------------------------------------------------------------
+     On met à jour l'heure chaque seconde. La date, elle, est formatée
+     joliment en français grâce à l'API Intl du navigateur.
+     ================================================================== */
+  function majHorloge() {
+    const maintenant = new Date();
+
+    // Heure au format HH:MM (padStart ajoute un 0 devant si besoin)
+    const h = String(maintenant.getHours()).padStart(2, "0");
+    const m = String(maintenant.getMinutes()).padStart(2, "0");
+    document.getElementById("heure").textContent = `${h}:${m}`;
+
+    // Date complète : "dimanche 25 octobre 2026"
+    const dateTexte = maintenant.toLocaleDateString("fr-FR", {
+      weekday: "long", day: "numeric", month: "long", year: "numeric"
+    });
+    document.getElementById("date-complete").textContent = dateTexte;
+
+    // Salutation qui change selon l'heure
+    const heure = maintenant.getHours();
+    let salut = "Bonne nuit la famille 🌙";
+    if (heure >= 6  && heure < 12) salut = "Bonjour la famille ☀️";
+    else if (heure >= 12 && heure < 18) salut = "Bon après-midi la famille 👋";
+    else if (heure >= 18 && heure < 23) salut = "Bonne soirée la famille 🌆";
+    document.getElementById("salutation").textContent = salut;
+  }
+
+  /* ==================================================================
+     3) MÉTÉO  —  via Open-Meteo (API gratuite, sans clé, CORS OK)
+     ------------------------------------------------------------------
+     On demande : la température actuelle + les prévisions sur 4 jours.
+     Les "weather_code" renvoyés sont des codes OMM qu'on traduit en
+     emoji + texte avec la petite fonction codeMeteo() ci-dessous.
+     ================================================================== */
+
+  // Traduction d'un code météo OMM en { icone, texte }
+  function codeMeteo(code) {
+    // Table simplifiée des principaux cas
+    const table = {
+      0:  ["☀️", "Ciel dégagé"],
+      1:  ["🌤️", "Plutôt dégagé"],
+      2:  ["⛅", "Partiellement nuageux"],
+      3:  ["☁️", "Couvert"],
+      45: ["🌫️", "Brouillard"],
+      48: ["🌫️", "Brouillard givrant"],
+      51: ["🌦️", "Bruine légère"],
+      53: ["🌦️", "Bruine"],
+      55: ["🌧️", "Bruine forte"],
+      61: ["🌦️", "Pluie faible"],
+      63: ["🌧️", "Pluie"],
+      65: ["🌧️", "Forte pluie"],
+      71: ["🌨️", "Neige faible"],
+      73: ["❄️", "Neige"],
+      75: ["❄️", "Forte neige"],
+      80: ["🌦️", "Averses"],
+      81: ["🌧️", "Averses"],
+      82: ["⛈️", "Fortes averses"],
+      95: ["⛈️", "Orage"],
+      96: ["⛈️", "Orage + grêle"]
+    };
+    return table[code] || ["🌡️", "—"]; // valeur par défaut si code inconnu
+  }
+
+  // Appel de l'API et affichage. async/await = code asynchrone lisible.
+  async function chargerMeteo() {
+    // On construit l'URL avec les coordonnées de la CONFIG
+    const url = "https://api.open-meteo.com/v1/forecast"
+      + `?latitude=${CONFIG.latitude}&longitude=${CONFIG.longitude}`
+      + "&current=temperature_2m,weather_code"
+      + "&daily=weather_code,temperature_2m_max,temperature_2m_min"
+      + "&timezone=Europe%2FParis&forecast_days=4";
+
+    try {
+      const reponse = await fetch(url);
+      if (!reponse.ok) throw new Error("réponse réseau " + reponse.status);
+      const data = await reponse.json();
+
+      // --- Météo actuelle ---
+      const [iconeNow, texteNow] = codeMeteo(data.current.weather_code);
+      const tempNow = Math.round(data.current.temperature_2m);
+
+      // --- Prévisions des prochains jours ---
+      // On fabrique un petit bloc HTML par jour, puis on les assemble.
+      let joursHTML = "";
+      for (let i = 0; i < data.daily.time.length; i++) {
+        const jour = new Date(data.daily.time[i]);
+        const nomJour = jour.toLocaleDateString("fr-FR", { weekday: "short" });
+        const [ic] = codeMeteo(data.daily.weather_code[i]);
+        const tmax = Math.round(data.daily.temperature_2m_max[i]);
+        const tmin = Math.round(data.daily.temperature_2m_min[i]);
+        joursHTML += `
+          <div class="meteo-jour">
+            <div class="j">${nomJour}</div>
+            <div class="i">${ic}</div>
+            <div class="t-max">${tmax}°</div>
+            <div class="t-min">${tmin}°</div>
+          </div>`;
+      }
+
+      // Injection dans la carte météo
+      document.getElementById("meteo-contenu").innerHTML = `
+        <div class="meteo-actuel">
+          <div class="meteo-icone">${iconeNow}</div>
+          <div>
+            <div class="meteo-temp">${tempNow}°</div>
+            <div class="meteo-desc">${texteNow} · ${CONFIG.ville}</div>
+          </div>
+        </div>
+        <div class="meteo-jours">${joursHTML}</div>`;
+
+    } catch (e) {
+      // En cas de souci (pas de réseau, API down…) on l'affiche proprement
+      document.getElementById("meteo-contenu").innerHTML =
+        `<div class="erreur">Météo indisponible (${e.message})</div>`;
+    }
+  }
+
+  /* ==================================================================
+     4) SAINT DU JOUR  —  table embarquée (fonctionne hors ligne)
+     ------------------------------------------------------------------
+     Clé = "MM-JJ" (mois-jour). On prend le calendrier français usuel
+     des prénoms. Table volontairement embarquée pour que ça marche
+     même sans connexion internet (utile sur un écran qui reste allumé).
+     ================================================================== */
+  const SAINTS = {
+    "01-01":"Marie","01-02":"Basile","01-03":"Geneviève","01-04":"Odilon","01-05":"Édouard","01-06":"Mélaine","01-07":"Raymond","01-08":"Lucien","01-09":"Alix","01-10":"Guillaume","01-11":"Pauline","01-12":"Tatiana","01-13":"Yvette","01-14":"Nina","01-15":"Rémi","01-16":"Marcel","01-17":"Roseline","01-18":"Prisca","01-19":"Marius","01-20":"Sébastien","01-21":"Agnès","01-22":"Vincent","01-23":"Barnard","01-24":"François de Sales","01-25":"Conversion de saint Paul","01-26":"Paule","01-27":"Angèle","01-28":"Thomas d'Aquin","01-29":"Gildas","01-30":"Martine","01-31":"Marcelle",
+    "02-01":"Ella","02-02":"Présentation","02-03":"Blaise","02-04":"Véronique","02-05":"Agathe","02-06":"Gaston","02-07":"Eugénie","02-08":"Jacqueline","02-09":"Apolline","02-10":"Arnaud","02-11":"Notre-Dame de Lourdes","02-12":"Félix","02-13":"Béatrice","02-14":"Valentin","02-15":"Claude","02-16":"Julienne","02-17":"Alexis","02-18":"Bernadette","02-19":"Gabin","02-20":"Aimée","02-21":"Damien","02-22":"Isabelle","02-23":"Lazare","02-24":"Modeste","02-25":"Roméo","02-26":"Nestor","02-27":"Honorine","02-28":"Romain","02-29":"Auguste",
+    "03-01":"Aubin","03-02":"Charles le Bon","03-03":"Guénolé","03-04":"Casimir","03-05":"Olive","03-06":"Colette","03-07":"Félicité","03-08":"Jean de Dieu","03-09":"Françoise","03-10":"Vivien","03-11":"Rosine","03-12":"Justine","03-13":"Rodrigue","03-14":"Mathilde","03-15":"Louise","03-16":"Bénédicte","03-17":"Patrice","03-18":"Cyrille","03-19":"Joseph","03-20":"Herbert","03-21":"Clémence","03-22":"Léa","03-23":"Victorien","03-24":"Catherine de Suède","03-25":"Annonciation","03-26":"Larissa","03-27":"Habib","03-28":"Gontran","03-29":"Gwladys","03-30":"Amédée","03-31":"Benjamin",
+    "04-01":"Hugues","04-02":"Sandrine","04-03":"Richard","04-04":"Isidore","04-05":"Irène","04-06":"Marcellin","04-07":"Jean-Baptiste de la Salle","04-08":"Julie","04-09":"Gautier","04-10":"Fulbert","04-11":"Stanislas","04-12":"Jules","04-13":"Ida","04-14":"Maxime","04-15":"Paterne","04-16":"Benoît-Joseph","04-17":"Anicet","04-18":"Parfait","04-19":"Emma","04-20":"Odette","04-21":"Anselme","04-22":"Alexandre","04-23":"Georges","04-24":"Fidèle","04-25":"Marc","04-26":"Alida","04-27":"Zita","04-28":"Valérie","04-29":"Catherine de Sienne","04-30":"Robert",
+    "05-01":"Jérémie","05-02":"Boris","05-03":"Philippe & Jacques","05-04":"Sylvain","05-05":"Judith","05-06":"Prudence","05-07":"Gisèle","05-08":"Victoire 1945","05-09":"Pacôme","05-10":"Solange","05-11":"Estelle","05-12":"Achille","05-13":"Rolande","05-14":"Matthias","05-15":"Denise","05-16":"Honoré","05-17":"Pascal","05-18":"Éric","05-19":"Yves","05-20":"Bernardin","05-21":"Constantin","05-22":"Émile","05-23":"Didier","05-24":"Donatien","05-25":"Sophie","05-26":"Bérenger","05-27":"Augustin","05-28":"Germain","05-29":"Aymar","05-30":"Ferdinand","05-31":"Visitation",
+    "06-01":"Justin","06-02":"Blandine","06-03":"Kévin","06-04":"Clotilde","06-05":"Igor","06-06":"Norbert","06-07":"Gilbert","06-08":"Médard","06-09":"Diane","06-10":"Landry","06-11":"Barnabé","06-12":"Guy","06-13":"Antoine de Padoue","06-14":"Élisée","06-15":"Germaine","06-16":"Jean-François Régis","06-17":"Hervé","06-18":"Léonce","06-19":"Romuald","06-20":"Silvère","06-21":"Rodolphe","06-22":"Alban","06-23":"Audrey","06-24":"Jean-Baptiste","06-25":"Prosper","06-26":"Anthelme","06-27":"Fernand","06-28":"Irénée","06-29":"Pierre & Paul","06-30":"Martial",
+    "07-01":"Thierry","07-02":"Martinien","07-03":"Thomas","07-04":"Florent","07-05":"Antoine","07-06":"Mariette","07-07":"Raoul","07-08":"Thibault","07-09":"Amandine","07-10":"Ulrich","07-11":"Benoît","07-12":"Olivier","07-13":"Henri & Joël","07-14":"Camille","07-15":"Donald","07-16":"Notre-Dame du Mont-Carmel","07-17":"Charlotte","07-18":"Frédéric","07-19":"Arsène","07-20":"Marina","07-21":"Victor","07-22":"Marie-Madeleine","07-23":"Brigitte","07-24":"Christine","07-25":"Jacques","07-26":"Anne & Joachim","07-27":"Nathalie","07-28":"Samson","07-29":"Marthe","07-30":"Juliette","07-31":"Ignace de Loyola",
+    "08-01":"Alphonse","08-02":"Julien Eymard","08-03":"Lydie","08-04":"Jean-Marie Vianney","08-05":"Abel","08-06":"Transfiguration","08-07":"Gaétan","08-08":"Dominique","08-09":"Amour","08-10":"Laurent","08-11":"Claire","08-12":"Clarisse","08-13":"Hippolyte","08-14":"Évrard","08-15":"Assomption","08-16":"Armel","08-17":"Hyacinthe","08-18":"Hélène","08-19":"Jean Eudes","08-20":"Bernard","08-21":"Christophe","08-22":"Fabrice","08-23":"Rose de Lima","08-24":"Barthélemy","08-25":"Louis","08-26":"Natacha","08-27":"Monique","08-28":"Augustin","08-29":"Sabine","08-30":"Fiacre","08-31":"Aristide",
+    "09-01":"Gilles","09-02":"Ingrid","09-03":"Grégoire","09-04":"Rosalie","09-05":"Raïssa","09-06":"Bertrand","09-07":"Reine","09-08":"Nativité de Marie","09-09":"Alain","09-10":"Inès","09-11":"Adelphe","09-12":"Apollinaire","09-13":"Aimé","09-14":"La Sainte Croix","09-15":"Roland","09-16":"Édith","09-17":"Renaud","09-18":"Nadège","09-19":"Émilie","09-20":"Davy","09-21":"Matthieu","09-22":"Maurice","09-23":"Constant","09-24":"Thècle","09-25":"Hermann","09-26":"Côme & Damien","09-27":"Vincent de Paul","09-28":"Venceslas","09-29":"Michel","09-30":"Jérôme",
+    "10-01":"Thérèse de l'EJ","10-02":"Léger","10-03":"Gérard","10-04":"François d'Assise","10-05":"Fleur","10-06":"Bruno","10-07":"Serge","10-08":"Pélagie","10-09":"Denis","10-10":"Ghislain","10-11":"Firmin","10-12":"Wilfried","10-13":"Géraud","10-14":"Juste","10-15":"Thérèse d'Avila","10-16":"Edwige","10-17":"Baudouin","10-18":"Luc","10-19":"René","10-20":"Adeline","10-21":"Céline","10-22":"Élodie","10-23":"Jean de Capistran","10-24":"Florentin","10-25":"Crépin","10-26":"Dimitri","10-27":"Émeline","10-28":"Simon & Jude","10-29":"Narcisse","10-30":"Bienvenue","10-31":"Quentin",
+    "11-01":"Toussaint","11-02":"Défunts","11-03":"Hubert","11-04":"Charles","11-05":"Sylvie","11-06":"Bertille","11-07":"Carine","11-08":"Geoffroy","11-09":"Théodore","11-10":"Léon","11-11":"Martin","11-12":"Christian","11-13":"Brice","11-14":"Sidoine","11-15":"Albert","11-16":"Marguerite","11-17":"Élisabeth","11-18":"Aude","11-19":"Tanguy","11-20":"Edmond","11-21":"Présentation de Marie","11-22":"Cécile","11-23":"Clément","11-24":"Flora","11-25":"Catherine","11-26":"Delphine","11-27":"Séverin","11-28":"Jacques de la M.","11-29":"Saturnin","11-30":"André",
+    "12-01":"Florence","12-02":"Viviane","12-03":"François Xavier","12-04":"Barbara","12-05":"Gérald","12-06":"Nicolas","12-07":"Ambroise","12-08":"Immaculée Conception","12-09":"Pierre Fourier","12-10":"Romaric","12-11":"Daniel","12-12":"Jeanne-F. de Chantal","12-13":"Lucie","12-14":"Odile","12-15":"Ninon","12-16":"Alice","12-17":"Gaël","12-18":"Gatien","12-19":"Urbain","12-20":"Abraham","12-21":"Pierre Canisius","12-22":"Françoise-Xavière","12-23":"Armand","12-24":"Adèle","12-25":"Noël","12-26":"Étienne","12-27":"Jean","12-28":"Innocents","12-29":"David","12-30":"Roger","12-31":"Sylvestre"
+  };
+
+  function majSaint() {
+    const d = new Date();
+    // on fabrique la clé "MM-JJ"
+    const mm = String(d.getMonth() + 1).padStart(2, "0");
+    const jj = String(d.getDate()).padStart(2, "0");
+    const nom = SAINTS[`${mm}-${jj}`] || "—";
+    document.getElementById("saint-nom").textContent = "St " + nom;
+    document.getElementById("saint-info").textContent = "Bonne fête aux " + nom + " !";
+  }
+
+  /* ==================================================================
+     5) COMPTE À REBOURS AVANT LES PROCHAINES VACANCES
+     ------------------------------------------------------------------
+     On parcourt la liste CONFIG.vacances, on garde la première date
+     encore à venir, et on calcule le nombre de jours restants.
+     ================================================================== */
+  function majVacances() {
+    const aujourdhui = new Date();
+    aujourdhui.setHours(0, 0, 0, 0); // on ignore l'heure, on compare des jours
+
+    // On cherche la prochaine date de vacances à venir
+    let prochaine = null;
+    for (const v of CONFIG.vacances) {
+      const dateV = new Date(v.date + "T00:00:00");
+      if (dateV >= aujourdhui) { prochaine = { ...v, dateObj: dateV }; break; }
+    }
+
+    const elNb    = document.getElementById("rebours-nb");
+    const elLabel = document.getElementById("rebours-label");
+    const elCible = document.getElementById("rebours-cible");
+
+    if (!prochaine) {
+      // Plus aucune date dans la liste -> penser à la mettre à jour
+      elNb.textContent = "🎉";
+      elLabel.textContent = "Liste des vacances à mettre à jour";
+      elCible.textContent = "";
+      return;
+    }
+
+    // Différence en jours : (date - aujourd'hui) / millisecondes par jour
+    const msParJour = 1000 * 60 * 60 * 24;
+    const joursRestants = Math.round((prochaine.dateObj - aujourdhui) / msParJour);
+
+    elNb.textContent    = joursRestants === 0 ? "🎉" : joursRestants;
+    elLabel.textContent = joursRestants <= 1 ? "jour" : "jours";
+    const dateJolie = prochaine.dateObj.toLocaleDateString("fr-FR",
+      { weekday: "long", day: "numeric", month: "long" });
+    elCible.textContent = `${prochaine.nom} · ${dateJolie}`;
+  }
+
+  /* ==================================================================
+     6) CORVÉES / PENSE-BÊTE (démo)
+     ------------------------------------------------------------------
+     Pour l'instant on lit simplement CONFIG.corvees. Plus tard, cette
+     fonction ira chercher la liste sur le NAS (fetch vers une URL).
+     ================================================================== */
+  function majCorvees() {
+    const ul = document.getElementById("liste-corvees");
+    ul.innerHTML = ""; // on vide d'abord
+    for (const tache of CONFIG.corvees) {
+      const li = document.createElement("li");
+      li.innerHTML = `<span class="puce"></span>${tache}`;
+      ul.appendChild(li);
+    }
+  }
+
+  /* ==================================================================
+     7) DÉMARRAGE  —  on lance tout et on programme les rafraîchissements
+     ================================================================== */
+  function init() {
+    majHorloge();  // horloge tout de suite…
+    majSaint();
+    majVacances();
+    majCorvees();
+    chargerMeteo();
+
+    // …puis mises à jour régulières :
+    setInterval(majHorloge, 1000);              // horloge chaque seconde
+    setInterval(chargerMeteo, 30 * 60 * 1000);  // météo toutes les 30 min
+    // Le saint et les vacances changent une fois par jour : on les
+    // rafraîchit toutes les heures, suffisant et sans coût.
+    setInterval(() => { majSaint(); majVacances(); }, 60 * 60 * 1000);
+  }
+
+  // On attend que la page soit prête avant de lancer init()
+  document.addEventListener("DOMContentLoaded", init);
+  </script>
+
+</body>
+</html>
