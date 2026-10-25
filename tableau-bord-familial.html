@@ -2,7 +2,7 @@
 <!--
 =====================================================================
   TABLEAU DE BORD FAMILIAL — SV
-  Version : 1.1.0
+  Version : 1.2.0
   Auteur  : svaug12345
   Cible   : Samsung Smart Monitor M7 32" (Tizen) + navigateur / téléphone
 ---------------------------------------------------------------------
@@ -23,6 +23,8 @@
   POUR PERSONNALISER : voir le bloc CONFIG dans le <script> en bas.
 
   HISTORIQUE
+    1.2.0 — Version appli TV Samsung (dossier tizen/) : touche Retour
+            pour quitter, écran qui ne se met plus en veille.
     1.1.0 — Vrai logo SV (le geste au pinceau, sv-mark), écran de
             lancement où le trait se dessine, couleurs et polices
             alignées sur la charte SV officielle (thème sombre,
@@ -370,7 +372,7 @@
   <footer>
     <!-- le geste seul, en petit, sans texte collé -->
     <svg viewBox="0 0 64 64" aria-label="SV"><use href="#sv-geste"/></svg>
-    <span class="version">v1.1.0</span>
+    <span class="version">v1.2.0</span>
   </footer>
 
   <!-- ====================================================================
@@ -617,9 +619,46 @@
   }
 
   /* ==================================================================
-     7) DÉMARRAGE  —  on lance tout et on programme les rafraîchissements
+     7) SPÉCIAL TV SAMSUNG (Tizen)
+     ------------------------------------------------------------------
+     Ce bloc ne fait quelque chose QUE si la page tourne comme appli sur
+     l'écran Samsung. Dans un navigateur normal, l'objet "tizen"
+     n'existe pas : on ne fait rien et la page marche comme avant.
+     ================================================================== */
+  function preparerTV() {
+    // typeof évite une erreur si "tizen" n'existe pas (navigateur classique)
+    if (typeof tizen === "undefined") return;
+
+    // --- Touche RETOUR de la télécommande = quitter l'appli ---
+    // Sur Tizen, chaque touche a un code. "Retour" vaut 10009.
+    // Sans ça, l'appui sur Retour ne ferait rien et on resterait coincé.
+    document.addEventListener("keydown", (e) => {
+      if (e.keyCode === 10009) {
+        try { tizen.application.getCurrentApplication().exit(); } catch (err) {}
+      }
+    });
+
+    // --- Empêcher l'économiseur d'écran ---
+    // Un tableau de bord doit rester affiché. Samsung fournit pour ça la
+    // bibliothèque "webapis", qu'on charge seulement ici (sur la TV) :
+    // dans un navigateur, ce fichier n'existe pas et provoquerait une erreur.
+    const s = document.createElement("script");
+    s.src = "$WEBAPIS/webapis/webapis.js";   // chemin spécial reconnu par la TV
+    s.onload = () => {
+      try {
+        webapis.appcommon.setScreenSaver(
+          webapis.appcommon.AppCommonScreenSaverState.SCREEN_SAVER_OFF);
+      } catch (err) { /* pas grave : l'écran se mettra juste en veille */ }
+    };
+    document.head.appendChild(s);
+  }
+
+  /* ==================================================================
+     8) DÉMARRAGE  —  on lance tout et on programme les rafraîchissements
      ================================================================== */
   function init() {
+    preparerTV();  // ne fait rien hors de la TV
+
     // Écran de lancement SV : on laisse le geste se dessiner (~0,9 s)
     // puis on le fait disparaître en fondu (classe .cache).
     setTimeout(() => {

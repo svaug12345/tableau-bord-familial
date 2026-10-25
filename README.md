@@ -6,7 +6,7 @@ POC d'un tableau de bord familial à afficher en continu sur un grand écran
 (pensé pour le **Samsung Smart Monitor M7 32"** sous Tizen, mais marche dans
 n'importe quel navigateur et sur téléphone).
 
-**Version actuelle : 1.1.0**
+**Version actuelle : 1.2.0**
 
 ## Ce qu'il affiche
 
@@ -30,11 +30,25 @@ Sur grand écran (≥ 1200 px de large), les cartes passent en 2×2 et remplisse
 | `assets/logos/sv-mark.svg` | Le geste SV seul (couleur réglable) |
 | `assets/logos/sv-icon.svg` | Icône SV claire (tuile teal) |
 | `assets/logos/sv-icon-dark.svg` | Icône SV sombre (sert d'icône d'onglet) |
+| `tizen/config.xml` | Carte d'identité de l'appli TV (nom, version, droits) |
+| `tizen/icon.png` | Icône de l'appli TV (512×512) |
+| `build-tizen.sh` | Rassemble les fichiers de l'appli TV dans `build/tizen` |
+| `INSTALL-TV.md` | Guide : signer et installer l'appli sur l'écran |
 
 ## Utilisation
 
 Ouvrir `tableau-bord-familial.html` dans un navigateur. C'est tout : un seul
 fichier, aucune installation.
+
+## Appli sur la TV Samsung
+
+Le dossier `tizen/` transforme la page en vraie appli pour l'écran M7 (icône SV
+dans le menu Apps, touche Retour pour quitter, pas de mise en veille).
+Le guide pas à pas est dans **[INSTALL-TV.md](INSTALL-TV.md)**.
+
+```bash
+./build-tizen.sh    # prépare build/tizen à partir de la page
+```
 
 ## Personnalisation
 
@@ -48,11 +62,11 @@ Tout se règle dans le bloc `CONFIG` en haut du `<script>`, à la fin du fichier
 
 - [ ] Brancher le pense-bête et le calendrier sur le NAS Synology (édition depuis le téléphone)
 - [ ] Récupérer les dates de vacances automatiquement (API education.gouv.fr)
-- [ ] Empaqueter en appli Tizen (`.wgt`) pour l'installer sur le M7
 - [ ] Ajouter : menu de la semaine, anniversaires, planning qui-fait-quoi
 
 ## Historique
 
+- **1.2.0** — Version appli TV Samsung (dossier `tizen/`, guide d'installation), touche Retour, écran qui reste allumé.
 - **1.1.0** — Vrai logo SV (le geste), écran de lancement animé, charte SV officielle, mise en page 2×2 pour grand écran.
 - **1.0.0** — Premier POC.
 

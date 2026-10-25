@@ -1,3 +1,4 @@
 # Fichiers système
 .DS_Store
 Thumbs.db
+build/

@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  =====================================================================
+  config.xml — la "carte d'identité" de l'appli pour la TV Samsung
+  ·····································································
+  Tizen lit ce fichier pour savoir : comment s'appelle l'appli, quelle
+  page ouvrir, quelle icône afficher et de quels droits elle a besoin.
+  Pense à monter le numéro "version" à chaque mise à jour.
+  =====================================================================
+-->
+<widget xmlns="http://www.w3.org/ns/widgets"
+        xmlns:tizen="http://tizen.org/ns/widgets"
+        id="http://svaug12345.github.io/tableau-bord-familial"
+        version="1.2.0"
+        viewmodes="maximized">
+
+  <!-- Identifiants Tizen :
+       - package = exactement 10 caractères (lettres/chiffres), unique
+       - id      = package + "." + un nom d'appli -->
+  <tizen:application id="SVtabBord1.TableauBord"
+                     package="SVtabBord1"
+                     required_version="2.3"/>
+
+  <!-- Appli prévue pour une TV (et pas une montre ou un téléphone) -->
+  <tizen:profile name="tv"/>
+
+  <!-- Nom affiché sous l'icône dans le menu Apps -->
+  <name>Tableau familial</name>
+  <description>Tableau de bord familial SV : heure, météo, saint du jour, vacances.</description>
+  <author href="https://github.com/svaug12345">svaug12345</author>
+
+  <!-- Page de démarrage et icône (copiées ici par build-tizen.sh) -->
+  <content src="index.html"/>
+  <icon src="icon.png"/>
+
+  <!-- Droit d'aller sur internet (indispensable pour la météo) -->
+  <tizen:privilege name="http://tizen.org/privilege/internet"/>
+  <!-- Autorise les appels vers n'importe quel site (API météo, polices) -->
+  <access origin="*" subdomains="true"/>
+
+  <!-- Réglages d'affichage :
+       - paysage, pas de menu clic droit
+       - hwkey-event : l'appli reçoit les touches de la télécommande -->
+  <tizen:setting screen-orientation="landscape"
+                 context-menu="disable"
+                 background-support="disable"
+                 encryption="disable"
+                 install-location="auto"
+                 hwkey-event="enable"/>
+</widget>
