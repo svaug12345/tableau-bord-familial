@@ -6,7 +6,7 @@ POC d'un tableau de bord familial à afficher en continu sur un grand écran
 (pensé pour le **Samsung Smart Monitor M7 32"** sous Tizen, mais marche dans
 n'importe quel navigateur et sur téléphone).
 
-**Version actuelle : 1.2.0**
+**Version actuelle : 1.2.1**
 
 ## Ce qu'il affiche
 
@@ -37,6 +37,8 @@ Sur grand écran (≥ 1200 px de large), les cartes passent en 2×2 et remplisse
 
 ## Utilisation
 
+**En ligne** (navigateur de la TV ou téléphone) : https://svaug12345.github.io/tableau-bord-familial/
+
 Ouvrir `tableau-bord-familial.html` dans un navigateur. C'est tout : un seul
 fichier, aucune installation.
 
@@ -66,6 +68,7 @@ Tout se règle dans le bloc `CONFIG` en haut du `<script>`, à la fin du fichier
 
 ## Historique
 
+- **1.2.1** — `index.html` : adresse courte via GitHub Pages pour le navigateur de la TV.
 - **1.2.0** — Version appli TV Samsung (dossier `tizen/`, guide d'installation), touche Retour, écran qui reste allumé.
 - **1.1.0** — Vrai logo SV (le geste), écran de lancement animé, charte SV officielle, mise en page 2×2 pour grand écran.
 - **1.0.0** — Premier POC.
