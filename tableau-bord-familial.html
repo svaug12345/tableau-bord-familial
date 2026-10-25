@@ -2,12 +2,13 @@
 <!--
 =====================================================================
   TABLEAU DE BORD FAMILIAL — SV
-  Version : 1.0.0
+  Version : 1.1.0
   Auteur  : svaug12345
   Cible   : Samsung Smart Monitor M7 32" (Tizen) + navigateur / téléphone
 ---------------------------------------------------------------------
   POC (proof of concept) : une seule page HTML autonome.
-  Aucune dépendance, aucun serveur : tout tient dans ce fichier.
+  Aucune dépendance obligatoire : tout tient dans ce fichier
+  (seules les polices viennent de Google Fonts, avec repli si hors ligne).
   Parfait pour être empaqueté plus tard en appli Tizen (.wgt).
 
   CE QUI EST BRANCHÉ POUR DE VRAI :
@@ -19,8 +20,14 @@
   CE QUI EST EN "DÉMO" POUR L'INSTANT (données écrites en dur) :
     - Les corvées / pense-bête  -> à brancher sur le NAS plus tard
 
-  POUR PERSONNALISER : voir le bloc CONFIG juste en dessous (dans le
-  <script> en bas de page). Tout ce que tu auras à changer est là.
+  POUR PERSONNALISER : voir le bloc CONFIG dans le <script> en bas.
+
+  HISTORIQUE
+    1.1.0 — Vrai logo SV (le geste au pinceau, sv-mark), écran de
+            lancement où le trait se dessine, couleurs et polices
+            alignées sur la charte SV officielle (thème sombre,
+            Manrope + JetBrains Mono).
+    1.0.0 — Premier POC.
 =====================================================================
 -->
 <html lang="fr">
@@ -30,224 +37,305 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Tableau de bord familial — SV</title>
 
+  <!-- Icône d'onglet : l'icône SV sombre (tuile nuit + geste turquoise) -->
+  <link rel="icon" type="image/svg+xml" href="assets/logos/sv-icon-dark.svg">
+
+  <!-- Polices de la charte SV (gratuites, Google Fonts) :
+       Manrope pour le texte, JetBrains Mono pour les chiffres.
+       Si l'écran est hors ligne, le navigateur prend la police système. -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;700;800&family=JetBrains+Mono:wght@400;700&display=swap">
+
   <style>
     /* =================================================================
-       CHARTE GRAPHIQUE "SV" (repensée pour un grand écran dans le salon)
+       CHARTE GRAPHIQUE "SV" — thème SOMBRE
        -----------------------------------------------------------------
-       Les couleurs sont définies une seule fois ici, en "variables CSS".
-       Tu changes une valeur -> toute l'appli suit. C'est la bonne
-       pratique pour garder une identité cohérente d'un projet à l'autre.
+       Les valeurs viennent directement des "tokens" de la charte SV
+       (design system SV). Un écran allumé en permanence dans le salon
+       = thème sombre : moins éblouissant le soir, et ça use moins la
+       dalle. Tu changes une valeur ici -> toute l'appli suit.
        ================================================================= */
     :root {
-      /* Teintes SV : fond sombre + turquoise / bleu-vert sobres et pro */
-      --sv-fond:        #0e1a1d;  /* fond principal, presque noir bleuté */
-      --sv-fond-carte:  #15262b;  /* fond des cartes, un cran plus clair */
-      --sv-bordure:     #1f3a42;  /* bordures discrètes */
-      --sv-turquoise:   #2fd3c6;  /* couleur d'accent principale (le "SV") */
-      --sv-turquoise-2: #1aa89c;  /* turquoise plus profond */
-      --sv-texte:       #e8f4f3;  /* texte clair, repos pour les yeux */
-      --sv-texte-doux:  #7fa3a6;  /* texte secondaire, plus discret */
+      /* --- Couleurs (tokens SV, thème sombre) --- */
+      --surface:        #0e1a1c;  /* fond de page */
+      --surface-raised: #152427;  /* fond des cartes posées sur le fond */
+      --line:           #26393c;  /* filets et bordures de 1px */
+      --ink:            #e6f1f1;  /* texte principal (et logo sur fond sombre) */
+      --ink-muted:      #9db3b5;  /* texte secondaire, légendes, crédits */
+      --teal:           #3cc2b8;  /* couleur de marque */
+      --teal-deep:      #1d6b6e;  /* grands aplats */
+      --teal-soft:      #1c4245;  /* zone mise en avant */
+      --accent:         #5fe0d2;  /* turquoise vif : le geste, petites touches */
+      --danger:         #f0857f;  /* erreurs (toujours avec un mot) */
 
-      /* Rayons d'arrondi et espacements, centralisés eux aussi */
-      --rayon: 20px;
-      --gap: 22px;
+      /* --- Polices --- */
+      --font-sans: Manrope, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      --font-mono: "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
+
+      /* --- Espacements et arrondis (tokens SV) --- */
+      --space-2: 8px;
+      --space-4: 16px;
+      --space-6: 24px;
+      --space-8: 32px;   /* marges d'écran sur grand écran */
+      --space-12: 48px;
+      --radius-md: 12px; /* boutons, cartes */
     }
 
     /* Remise à zéro de base : pas de marges surprises */
     * { margin: 0; padding: 0; box-sizing: border-box; }
 
     body {
-      font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
-      background: var(--sv-fond);
-      /* léger halo turquoise en haut pour donner du relief */
-      background-image:
-        radial-gradient(1200px 500px at 50% -200px, rgba(47,211,198,0.12), transparent);
-      color: var(--sv-texte);
+      font-family: var(--font-sans);
+      background: var(--surface);
+      color: var(--ink);
       min-height: 100vh;
-      padding: var(--gap);
-      /* évite que le texte soit sélectionnable à la télécommande */
-      user-select: none;
+      padding: var(--space-8);
+      user-select: none;   /* rien de sélectionnable à la télécommande */
       overflow-x: hidden;
+      display: flex;
+      flex-direction: column;
     }
 
-    /* ---------- EN-TÊTE : logo SV + titre + date ---------- */
-    header {
+    /* =================================================================
+       ÉCRAN DE LANCEMENT (règle de la charte : le geste centré, en
+       "accent" sur fond sombre, ~1 seconde, le trait se dessine de
+       gauche à droite).
+       Astuce : on ne "dessine" pas vraiment le tracé (c'est une forme
+       pleine, pas un trait). On le cache derrière un masque, puis on
+       agrandit le masque de gauche à droite : l'effet est le même.
+       ================================================================= */
+    #lancement {
+      position: fixed;
+      inset: 0;                       /* plein écran */
+      background: var(--surface);
       display: flex;
       align-items: center;
-      gap: 16px;
-      margin-bottom: var(--gap);
+      justify-content: center;
+      z-index: 10;
+      transition: opacity 0.5s ease;  /* fondu à la sortie */
     }
+    #lancement.cache { opacity: 0; pointer-events: none; }
+    #lancement svg {
+      width: min(30vw, 260px);
+      color: var(--accent);           /* le geste prend currentColor */
+    }
+    /* le rectangle du masque part de largeur 0 et s'étire jusqu'à 64
+       (la largeur du dessin) en 0,9 s */
+    #masque-rect { animation: dessin 0.9s ease-out forwards; }
+    @keyframes dessin { from { width: 0; } to { width: 64px; } }
 
-    /* Le logo "SV" : un trait façon pinceau (on ne reconnaît pas vraiment
-       le S), dessiné en SVG directement dans le HTML plus bas. */
-    .logo { width: 56px; height: 56px; flex-shrink: 0; }
-
-    .titre-zone { flex: 1; }
-    .titre-zone h1 {
-      font-size: 1.6rem;
-      font-weight: 600;
-      letter-spacing: 0.5px;
+    /* ---------- EN-TÊTE : salutation + date à gauche, heure à droite ---------- */
+    /* Pas de logo ici : la charte veut un geste discret, jamais collé
+       à du texte. Il est en bas de page, en petit. */
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      gap: var(--space-6);
+      flex-wrap: wrap;                 /* passe à la ligne sur téléphone */
+      margin-bottom: var(--space-8);
     }
-    .titre-zone .sous-titre {
-      color: var(--sv-texte-doux);
-      font-size: 0.95rem;
-    }
-
-    /* ---------- HORLOGE PRINCIPALE ---------- */
-    .horloge {
-      text-align: center;
-      margin: 10px 0 26px;
-    }
-    .horloge .heure {
-      font-size: clamp(3.5rem, 12vw, 7rem); /* s'adapte à la taille d'écran */
+    .salutation {
+      font-size: clamp(1.4rem, 3vw, 2rem);  /* style h1 de la charte */
       font-weight: 700;
+      letter-spacing: -0.01em;
+    }
+    .date {
+      color: var(--ink-muted);
+      font-size: clamp(1rem, 2vw, 1.3rem);
+      margin-top: var(--space-2);
+    }
+    .date::first-letter { text-transform: uppercase; } /* "Dimanche…" */
+
+    /* L'heure : les chiffres en JetBrains Mono (même largeur pour tous,
+       donc rien ne "tremble" quand les minutes changent). Une seule
+       couleur, comme le veut la charte : pas de dégradé. */
+    .heure {
+      font-family: var(--font-mono);
+      font-weight: 700;
+      font-size: clamp(3.5rem, 11vw, 8rem);
       line-height: 1;
-      color: var(--sv-texte);
-      /* dégradé turquoise sur les chiffres */
-      background: linear-gradient(135deg, var(--sv-turquoise), var(--sv-turquoise-2));
-      -webkit-background-clip: text;
-      background-clip: text;
-      -webkit-text-fill-color: transparent;
+      color: var(--ink);
+      letter-spacing: -0.03em;
     }
-    .horloge .date {
-      font-size: clamp(1rem, 3vw, 1.5rem);
-      color: var(--sv-texte-doux);
-      margin-top: 8px;
-      text-transform: capitalize; /* "dimanche 25 octobre" avec majuscule */
-    }
+    .heure .sec { color: var(--teal); }  /* les ":" en couleur de marque */
 
     /* ---------- GRILLE DE CARTES ---------- */
-    /* auto-fit : le nombre de colonnes s'ajuste à la largeur dispo */
+    /* auto-fit : le nombre de colonnes s'adapte à la largeur dispo */
     .grille {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-      gap: var(--gap);
+      gap: var(--space-6);
+      flex: 1;
+      align-content: start;
     }
 
     .carte {
-      background: var(--sv-fond-carte);
-      border: 1px solid var(--sv-bordure);
-      border-radius: var(--rayon);
-      padding: 24px;
-      /* petite animation à l'apparition */
+      background: var(--surface-raised);
+      border: 1px solid var(--line);
+      border-radius: var(--radius-md);
+      padding: var(--space-6);
       animation: apparition 0.6s ease both;
     }
+    /* chaque carte arrive un poil après la précédente */
+    .carte:nth-child(2) { animation-delay: 0.08s; }
+    .carte:nth-child(3) { animation-delay: 0.16s; }
+    .carte:nth-child(4) { animation-delay: 0.24s; }
     @keyframes apparition {
       from { opacity: 0; transform: translateY(12px); }
       to   { opacity: 1; transform: translateY(0); }
     }
 
+    /* Titre de carte = style "label" de la charte (capitales espacées) */
     .carte h2 {
-      font-size: 0.85rem;
+      font-size: 0.8rem;
+      font-weight: 700;
       text-transform: uppercase;
-      letter-spacing: 1.5px;
-      color: var(--sv-turquoise);
-      margin-bottom: 16px;
-      display: flex;
-      align-items: center;
-      gap: 8px;
+      letter-spacing: 0.08em;
+      color: var(--teal);
+      margin-bottom: var(--space-4);
     }
 
     /* ---------- CARTE MÉTÉO ---------- */
     .meteo-actuel {
       display: flex;
       align-items: center;
-      gap: 16px;
-      margin-bottom: 16px;
+      gap: var(--space-4);
+      margin-bottom: var(--space-4);
     }
     .meteo-icone { font-size: 3.2rem; line-height: 1; }
-    .meteo-temp  { font-size: 2.6rem; font-weight: 700; }
-    .meteo-desc  { color: var(--sv-texte-doux); font-size: 0.95rem; }
+    .meteo-temp  { font-family: var(--font-mono); font-size: 2.6rem; font-weight: 700; }
+    .meteo-desc  { color: var(--ink-muted); font-size: 0.95rem; }
 
-    /* prévisions des prochains jours */
-    .meteo-jours { display: flex; justify-content: space-between; gap: 8px; }
+    .meteo-jours { display: flex; justify-content: space-between; gap: var(--space-2); }
     .meteo-jour  { text-align: center; flex: 1; }
-    .meteo-jour .j     { color: var(--sv-texte-doux); font-size: 0.8rem; text-transform: capitalize; }
+    .meteo-jour .j     { color: var(--ink-muted); font-size: 0.8rem; text-transform: capitalize; }
     .meteo-jour .i     { font-size: 1.6rem; margin: 4px 0; }
-    .meteo-jour .t-max { font-weight: 600; }
-    .meteo-jour .t-min { color: var(--sv-texte-doux); font-size: 0.85rem; }
+    .meteo-jour .t-max { font-family: var(--font-mono); font-weight: 700; }
+    .meteo-jour .t-min { font-family: var(--font-mono); color: var(--ink-muted); font-size: 0.85rem; }
 
     /* ---------- CARTE SAINT DU JOUR ---------- */
-    .saint-nom { font-size: 2rem; font-weight: 700; }
-    .saint-info { color: var(--sv-texte-doux); margin-top: 6px; }
+    .saint-nom  { font-size: 2rem; font-weight: 800; letter-spacing: -0.01em; }
+    .saint-info { color: var(--ink-muted); margin-top: 6px; }
 
     /* ---------- CARTE COMPTE À REBOURS ---------- */
+    /* Cette carte est "mise en avant" : fond teal-soft */
+    .carte.relief { background: var(--teal-soft); border-color: transparent; }
+    .carte.relief h2 { color: var(--ink); }
     .rebours-nb {
-      font-size: 3.4rem;
+      font-family: var(--font-mono);
+      font-size: 3.6rem;
       font-weight: 700;
-      color: var(--sv-turquoise);
+      color: var(--accent);
       line-height: 1;
     }
-    .rebours-label { color: var(--sv-texte-doux); margin-top: 8px; }
-    .rebours-cible { margin-top: 4px; font-size: 0.9rem; }
+    .rebours-label { color: var(--ink); margin-top: var(--space-2); }
+    .rebours-cible { margin-top: 4px; font-size: 0.9rem; color: var(--ink-muted); }
 
-    /* ---------- CARTE CORVÉES (démo) ---------- */
+    /* ---------- CARTE PENSE-BÊTE (démo) ---------- */
     .liste { list-style: none; }
     .liste li {
       display: flex;
       align-items: center;
       gap: 10px;
       padding: 10px 0;
-      border-bottom: 1px solid var(--sv-bordure);
+      border-bottom: 1px solid var(--line);
       font-size: 1.05rem;
     }
     .liste li:last-child { border-bottom: none; }
     .puce {
-      width: 10px; height: 10px; border-radius: 50%;
-      background: var(--sv-turquoise); flex-shrink: 0;
+      width: 8px; height: 8px; border-radius: 50%;
+      background: var(--accent); flex-shrink: 0;
     }
 
     /* ---------- PIED DE PAGE ---------- */
+    /* Charte : dans les crédits, le geste en petit (32px), couleur
+       ink-muted, SANS texte collé. Le numéro de version est donc
+       posé à l'autre bout de la ligne, bien séparé. */
     footer {
-      text-align: center;
-      color: var(--sv-texte-doux);
-      font-size: 0.8rem;
-      margin-top: var(--gap);
-      opacity: 0.6;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: var(--space-8);
+      color: var(--ink-muted);
+    }
+    footer svg { width: 32px; height: 32px; color: var(--ink-muted); }
+    footer .version { font-family: var(--font-mono); font-size: 0.8rem; }
+
+    /* =================================================================
+       GRAND ÉCRAN (le M7 en 32") : 2 colonnes x 2 lignes qui remplissent
+       toute la hauteur, et tout est agrandi pour être lisible de loin.
+       "@media" = ces règles ne s'appliquent que si l'écran est assez large.
+       ================================================================= */
+    @media (min-width: 1200px) {
+      .grille {
+        grid-template-columns: repeat(2, 1fr);
+        grid-auto-rows: 1fr;        /* les 2 lignes ont la même hauteur */
+        align-content: stretch;     /* et s'étirent jusqu'en bas */
+      }
+      .carte { padding: var(--space-8); display: flex; flex-direction: column; }
+      .carte h2 { font-size: 1rem; margin-bottom: var(--space-6); }
+      .meteo-icone  { font-size: 5rem; }
+      .meteo-temp   { font-size: 4rem; }
+      .meteo-desc   { font-size: 1.2rem; }
+      .meteo-jours  { margin-top: auto; }   /* prévisions calées en bas */
+      .meteo-jour .i     { font-size: 2.4rem; }
+      .meteo-jour .j     { font-size: 1rem; }
+      .meteo-jour .t-max { font-size: 1.4rem; }
+      .meteo-jour .t-min { font-size: 1.1rem; }
+      .saint-nom  { font-size: 4rem; margin-top: auto; }
+      .saint-info { font-size: 1.3rem; margin-bottom: auto; }
+      .rebours-nb { font-size: 8rem; margin-top: auto; }
+      .rebours-label { font-size: 1.4rem; }
+      .rebours-cible { font-size: 1.2rem; margin-bottom: auto; }
+      .liste li { font-size: 1.4rem; padding: 14px 0; }
     }
 
     /* message d'erreur (ex : météo non chargée) */
-    .erreur { color: #e8927c; font-size: 0.9rem; }
+    .erreur { color: var(--danger); font-size: 0.9rem; }
   </style>
 </head>
 
 <body>
 
+  <!-- Le dessin du geste SV, défini UNE fois ici puis réutilisé avec
+       <use href="#sv-geste"> (dans le lancement et le pied de page).
+       Tracé repris tel quel de sv-mark.svg (dossier assets/logos). -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <defs>
+      <path id="sv-geste" fill="currentColor" d="M6.78 46.08L7.79 45.75L8.80 45.40L9.83 45.06L10.87 44.70L11.91 44.34L12.96 43.97L14.02 43.61L15.08 43.23L16.15 42.85L17.23 42.47L18.31 42.09L19.40 41.70L20.49 41.32L21.59 40.93L22.69 40.54L23.80 40.15L24.91 39.76L26.02 39.38L27.13 38.99L28.25 38.61L29.36 38.23L30.48 37.85L31.60 37.47L32.72 37.10L33.84 36.73L34.96 36.37L36.08 36.01L37.20 35.66L38.32 35.31L39.43 34.97L40.55 34.64L41.65 34.32L42.76 34.00L43.86 33.70L44.96 33.40L46.06 33.11L47.15 32.83L48.23 32.57L49.31 32.31L50.38 32.07L51.45 31.84L52.51 31.62L53.56 31.41L54.61 31.22L55.64 31.04L56.67 30.87L57.69 30.72L58.71 30.59A1.80 1.80 0 0 0 58.29 27.01L57.24 27.12L56.17 27.24L55.09 27.38L54.01 27.53L52.91 27.70L51.82 27.88L50.71 28.07L49.60 28.28L48.49 28.50L47.37 28.73L46.24 28.97L45.11 29.23L43.98 29.49L42.85 29.76L41.71 30.04L40.57 30.33L39.42 30.63L38.28 30.94L37.13 31.25L35.99 31.57L34.84 31.89L33.69 32.22L32.55 32.56L31.40 32.90L30.26 33.25L29.12 33.59L27.97 33.95L26.84 34.30L25.70 34.65L24.57 35.01L23.44 35.37L22.31 35.73L21.19 36.09L20.08 36.45L18.97 36.80L17.86 37.16L16.77 37.51L15.68 37.86L14.59 38.21L13.51 38.55L12.45 38.89L11.39 39.23L10.33 39.56L9.29 39.89L8.26 40.20L7.24 40.52L6.23 40.82L5.22 41.12A2.60 2.60 0 0 0 6.78 46.08ZM59.78 27.68L59.55 27.43L59.28 27.16L59.00 26.91L58.70 26.67L58.40 26.43L58.08 26.21L57.76 26.00L57.42 25.80L57.08 25.61L56.73 25.43L56.37 25.25L56.00 25.08L55.62 24.93L55.24 24.77L54.85 24.63L54.45 24.49L54.05 24.36L53.63 24.24L53.22 24.12L52.80 24.01L52.37 23.91L51.93 23.81L51.50 23.72L51.05 23.63L50.61 23.55L50.16 23.48L49.70 23.41L49.25 23.34L48.79 23.28L48.32 23.23L47.86 23.18L47.39 23.14L46.92 23.10L46.45 23.07L45.98 23.04L45.51 23.02L45.04 23.00L44.56 22.98L44.09 22.97L43.62 22.97L43.15 22.97L42.68 22.98L42.22 22.99L41.75 23.00L41.29 23.02L40.83 23.04L40.38 23.07L39.93 23.10A1.30 1.30 0 0 0 40.07 25.70L40.50 25.68L40.93 25.67L41.36 25.67L41.80 25.67L42.24 25.67L42.68 25.68L43.12 25.69L43.56 25.70L44.01 25.72L44.45 25.75L44.89 25.78L45.34 25.81L45.78 25.85L46.22 25.89L46.66 25.94L47.09 25.99L47.52 26.04L47.95 26.11L48.38 26.17L48.80 26.24L49.22 26.32L49.64 26.40L50.04 26.48L50.45 26.57L50.84 26.66L51.23 26.76L51.61 26.86L51.99 26.97L52.35 27.08L52.71 27.20L53.06 27.32L53.40 27.45L53.73 27.58L54.05 27.71L54.36 27.85L54.66 27.99L54.94 28.14L55.22 28.28L55.48 28.44L55.72 28.59L55.96 28.75L56.18 28.91L56.38 29.07L56.58 29.23L56.75 29.40L56.91 29.56L57.06 29.72L57.22 29.92A1.70 1.70 0 0 0 59.78 27.68ZM40.56 25.46L40.92 25.26L41.28 25.07L41.63 24.88L41.99 24.69L42.35 24.52L42.70 24.35L43.06 24.18L43.41 24.02L43.77 23.87L44.12 23.72L44.48 23.58L44.83 23.44L45.19 23.31L45.54 23.18L45.89 23.06L46.25 22.94L46.60 22.83L46.95 22.72L47.30 22.62L47.65 22.52L48.00 22.43L48.35 22.34L48.69 22.26L49.04 22.18L49.39 22.11L49.73 22.04L50.07 21.98L50.42 21.92L50.76 21.87L51.10 21.82L51.43 21.77L51.77 21.73L52.11 21.70L52.44 21.67L52.77 21.64L53.10 21.62L53.43 21.60L53.76 21.58L54.08 21.57L54.41 21.56L54.73 21.56L55.05 21.56L55.37 21.57L55.68 21.57L55.99 21.59L56.31 21.60L56.62 21.62L56.93 21.65A0.65 0.65 0 0 0 57.07 20.35L56.76 20.31L56.43 20.26L56.11 20.22L55.78 20.19L55.45 20.15L55.11 20.12L54.78 20.10L54.44 20.08L54.09 20.06L53.75 20.05L53.40 20.04L53.05 20.04L52.70 20.04L52.35 20.05L51.99 20.06L51.64 20.07L51.28 20.09L50.92 20.12L50.55 20.15L50.19 20.18L49.82 20.22L49.45 20.26L49.08 20.31L48.71 20.37L48.34 20.42L47.96 20.49L47.58 20.56L47.20 20.63L46.83 20.71L46.44 20.80L46.06 20.89L45.68 20.99L45.29 21.09L44.91 21.20L44.52 21.31L44.14 21.43L43.75 21.56L43.36 21.69L42.97 21.83L42.58 21.97L42.19 22.12L41.79 22.27L41.40 22.44L41.01 22.60L40.62 22.78L40.22 22.96L39.83 23.15L39.44 23.34A1.20 1.20 0 0 0 40.56 25.46Z"/>
+    </defs>
+  </svg>
+
+  <!-- ================= ÉCRAN DE LANCEMENT ================= -->
+  <div id="lancement">
+    <svg viewBox="0 0 64 64" aria-label="SV">
+      <defs>
+        <!-- masque : seul ce qui est sous le rectangle blanc est visible -->
+        <mask id="masque">
+          <rect id="masque-rect" x="0" y="0" width="0" height="64" fill="#fff"/>
+        </mask>
+      </defs>
+      <use href="#sv-geste" mask="url(#masque)"/>
+    </svg>
+  </div>
+
   <!-- ================= EN-TÊTE ================= -->
   <header>
-    <!-- LOGO SV : trait de pinceau abstrait (pas de lettre lisible),
-         tracé en une courbe. Il reprend le turquoise de la charte. -->
-    <svg class="logo" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-label="SV">
-      <defs>
-        <linearGradient id="grad-sv" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%"  stop-color="#2fd3c6"/>
-          <stop offset="100%" stop-color="#1aa89c"/>
-        </linearGradient>
-      </defs>
-      <!-- une seule courbe "coup de pinceau", épaisse et arrondie -->
-      <path d="M22 70 C 30 40, 55 38, 50 55 C 46 70, 62 72, 78 34"
-            fill="none" stroke="url(#grad-sv)" stroke-width="11"
-            stroke-linecap="round" stroke-linejoin="round"/>
-    </svg>
-
-    <div class="titre-zone">
-      <h1>Tableau de bord familial</h1>
-      <div class="sous-titre" id="salutation">Bonjour la famille !</div>
+    <div>
+      <div class="salutation" id="salutation">Bonjour la famille</div>
+      <div class="date" id="date-complete">chargement…</div>
     </div>
+    <div class="heure" id="heure">--<span class="sec">:</span>--</div>
   </header>
-
-  <!-- ================= HORLOGE ================= -->
-  <div class="horloge">
-    <div class="heure" id="heure">--:--</div>
-    <div class="date" id="date-complete">chargement…</div>
-  </div>
 
   <!-- ================= GRILLE DE CARTES ================= -->
   <div class="grille">
 
     <!-- Carte 1 : MÉTÉO -->
     <div class="carte">
-      <h2>☀️ Météo</h2>
+      <h2>Météo</h2>
       <div id="meteo-contenu">
         <div class="meteo-desc">Chargement de la météo…</div>
       </div>
@@ -255,22 +343,22 @@
 
     <!-- Carte 2 : SAINT DU JOUR -->
     <div class="carte">
-      <h2>🗓️ Saint du jour</h2>
+      <h2>Saint du jour</h2>
       <div class="saint-nom" id="saint-nom">—</div>
       <div class="saint-info" id="saint-info"></div>
     </div>
 
-    <!-- Carte 3 : COMPTE À REBOURS VACANCES -->
-    <div class="carte">
-      <h2>🏖️ Prochaines vacances</h2>
+    <!-- Carte 3 : COMPTE À REBOURS VACANCES (mise en avant) -->
+    <div class="carte relief">
+      <h2>Prochaines vacances</h2>
       <div class="rebours-nb" id="rebours-nb">—</div>
       <div class="rebours-label" id="rebours-label">jours</div>
       <div class="rebours-cible" id="rebours-cible"></div>
     </div>
 
-    <!-- Carte 4 : CORVÉES / PENSE-BÊTE (démo - données en dur) -->
+    <!-- Carte 4 : PENSE-BÊTE (démo - données en dur) -->
     <div class="carte">
-      <h2>✅ À ne pas oublier</h2>
+      <h2>À ne pas oublier</h2>
       <ul class="liste" id="liste-corvees">
         <!-- rempli par le JavaScript depuis la CONFIG -->
       </ul>
@@ -280,9 +368,10 @@
 
   <!-- ================= PIED DE PAGE ================= -->
   <footer>
-    SV · Tableau de bord familial · v1.0.0
+    <!-- le geste seul, en petit, sans texte collé -->
+    <svg viewBox="0 0 64 64" aria-label="SV"><use href="#sv-geste"/></svg>
+    <span class="version">v1.1.0</span>
   </footer>
-
 
   <!-- ====================================================================
        SCRIPT : toute la logique de l'appli
@@ -331,7 +420,8 @@
     // Heure au format HH:MM (padStart ajoute un 0 devant si besoin)
     const h = String(maintenant.getHours()).padStart(2, "0");
     const m = String(maintenant.getMinutes()).padStart(2, "0");
-    document.getElementById("heure").textContent = `${h}:${m}`;
+    // innerHTML (et pas textContent) car on glisse un <span> pour colorer les ":"
+    document.getElementById("heure").innerHTML = `${h}<span class="sec">:</span>${m}`;
 
     // Date complète : "dimanche 25 octobre 2026"
     const dateTexte = maintenant.toLocaleDateString("fr-FR", {
@@ -341,10 +431,10 @@
 
     // Salutation qui change selon l'heure
     const heure = maintenant.getHours();
-    let salut = "Bonne nuit la famille 🌙";
-    if (heure >= 6  && heure < 12) salut = "Bonjour la famille ☀️";
-    else if (heure >= 12 && heure < 18) salut = "Bon après-midi la famille 👋";
-    else if (heure >= 18 && heure < 23) salut = "Bonne soirée la famille 🌆";
+    let salut = "Bonne nuit la famille";
+    if (heure >= 6  && heure < 12) salut = "Bonjour la famille";
+    else if (heure >= 12 && heure < 18) salut = "Bon après-midi la famille";
+    else if (heure >= 18 && heure < 23) salut = "Bonne soirée la famille";
     document.getElementById("salutation").textContent = salut;
   }
 
@@ -530,6 +620,12 @@
      7) DÉMARRAGE  —  on lance tout et on programme les rafraîchissements
      ================================================================== */
   function init() {
+    // Écran de lancement SV : on laisse le geste se dessiner (~0,9 s)
+    // puis on le fait disparaître en fondu (classe .cache).
+    setTimeout(() => {
+      document.getElementById("lancement").classList.add("cache");
+    }, 1200);
+
     majHorloge();  // horloge tout de suite…
     majSaint();
     majVacances();
